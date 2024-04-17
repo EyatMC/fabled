@@ -8,19 +8,15 @@ import studio.magemonkey.fabled.dynamic.mechanic.MechanicComponent;
 import studio.magemonkey.fabled.listener.MechanicListener;
 import studio.magemonkey.fabled.task.RemoveTask;
 import org.bukkit.Location;
-import org.bukkit.RegionAccessor;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-
-import static studio.magemonkey.fabled.util.ThrowableSupplier.tryWithRecovers;
 
 /**
  * Summons an armor stand that can be used as a marker or for item display. Applies child components on the armor stand
@@ -94,22 +90,13 @@ public class ArmorStandMechanic extends MechanicComponent {
                 as.setBasePlate(base);
                 as.setVisible(visible);
             };
-            ArmorStand as = tryWithRecovers(
-                    () -> target.getWorld().spawn(loc, ArmorStand.class, onSpawn),
-                    () -> {
-                        // 1.20.1: remove this block if the deprecated interface has removed.
-                        //noinspection JavaReflectionMemberAccess,deprecation
-                        Method method = RegionAccessor.class.getDeclaredMethod("spawn", Location.class, Class.class, org.bukkit.util.Consumer.class);
-                        //noinspection deprecation
-                        return (ArmorStand) method.invoke(target.getWorld(), loc, ArmorStand.class,
-                                (org.bukkit.util.Consumer<ArmorStand>) onSpawn::accept);
-                    },
-                    () -> {
-                        ArmorStand stand = target.getWorld().spawn(loc, ArmorStand.class);
-                        onSpawn.accept(stand);
-                        return stand;
-                    }
-            );
+            ArmorStand as;
+            try {
+                as = target.getWorld().spawn(loc, ArmorStand.class, onSpawn);
+            } catch (NoSuchMethodError e) {
+                as = target.getWorld().spawn(loc, ArmorStand.class);
+                onSpawn.accept(as);
+            }
             Fabled.setMeta(as, MechanicListener.ARMOR_STAND, true);
             armorStands.add(as);
 
